@@ -2,12 +2,13 @@
 
 ## Current Linux server
 
-Development server:
+Development server profile:
 - Ubuntu 24.04
-- public IP used during development: `95.111.242.96`
-- Linux desktop user: `desktop`
 - XFCE
 - TigerVNC display `:1`
+- Linux desktop user used in the current lab: `desktop`
+
+> The repository is public. Keep the real public server IP, passwords, API tokens, private keys and other live credentials outside GitHub. In commands below use `<CONTABO_IP>`.
 
 ## TigerVNC
 
@@ -16,7 +17,7 @@ Typical launch:
 vncserver :1 -geometry 1024x768 -depth 24 -localhost no
 ```
 
-Expected port:
+Development VNC port:
 ```text
 5901
 ```
@@ -29,14 +30,9 @@ unset DBUS_SESSION_BUS_ADDRESS
 exec dbus-launch --exit-with-session startxfce4
 ```
 
-File:
+Typical file:
 ```text
 /home/desktop/.vnc/xstartup
-```
-
-Make executable:
-```bash
-chmod +x /home/desktop/.vnc/xstartup
 ```
 
 ## Files API
@@ -46,7 +42,7 @@ Server script from the matching application release:
 scripts/ipad1vnc_fileserver.py
 ```
 
-Production path used during development:
+Installed path used by the lab server:
 ```text
 /opt/ipad1vnc/ipad1vnc_fileserver.py
 ```
@@ -56,19 +52,20 @@ Files root:
 /home/desktop/Downloads
 ```
 
-Token file:
+Token file path:
 ```text
 /home/desktop/.ipad1vnc-files-token
 ```
 
-Port:
+Never commit the token value.
+
+Development port:
 ```text
 8085
 ```
 
 ## Systemd service
 
-Recommended service:
 ```ini
 [Unit]
 Description=iPad1VNC File Server
@@ -105,10 +102,10 @@ sudo journalctl -u ipad1vnc-fileserver -n 50 --no-pager
 From the WSL project directory:
 ```bash
 scp scripts/ipad1vnc_fileserver.py \
-root@95.111.242.96:/opt/ipad1vnc/ipad1vnc_fileserver.py
+root@<CONTABO_IP>:/opt/ipad1vnc/ipad1vnc_fileserver.py
 ```
 
-Then on Contabo:
+Then on the server:
 ```bash
 sudo chmod 755 /opt/ipad1vnc/ipad1vnc_fileserver.py
 sudo systemctl restart ipad1vnc-fileserver
@@ -125,54 +122,20 @@ X-iPad1VNC-Token
 ```
 
 Endpoints used/targeted by v2.2:
+- `GET /api/list?path=<relative-path>`
+- `GET /api/stat?path=<relative-path>`
+- `GET /download?path=<relative-path>&token=<token>`
+- `POST /api/mkdir`
+- `POST /api/rename`
+- `POST /api/delete`
+- `POST /api/upload`
+- `POST /api/upload-chunk?path=<path>&offset=<offset>&total=<total>`
 
-### List
-```text
-GET /api/list?path=<relative-path>
-```
-
-### Stat
-```text
-GET /api/stat?path=<relative-path>
-```
-
-### Download
-```text
-GET /download?path=<relative-path>&token=<token>
-```
-
-v2.2 server target supports HTTP Range requests for resume.
-
-### New folder
-```text
-POST /api/mkdir
-```
-
-### Rename
-```text
-POST /api/rename
-```
-
-### Delete
-```text
-POST /api/delete
-```
-
-### Upload
-```text
-POST /api/upload
-```
-
-### Chunked/resumable upload
-```text
-POST /api/upload-chunk?path=<path>&offset=<offset>&total=<total>
-```
+v2.2 target supports HTTP Range downloads for resume.
 
 ## Security
 
-During development, VNC 5901 and Files 8085 have been reachable directly.
-
-This should not be the final production posture.
+During development, VNC 5901 and Files 8085 may be reachable directly. This should not be the final production posture.
 
 Preferred final posture:
 1. verify SSH VNC tunnel,
@@ -180,22 +143,17 @@ Preferred final posture:
 3. firewall/restrict public 5901,
 4. firewall/restrict public 8085.
 
-The Files token over plain HTTP is authentication, not transport encryption. Do not treat the token alone as network confidentiality.
+The Files token over plain HTTP is authentication, not transport encryption.
 
 ## Dynamic resolution helper
 
-v2.1/v2.2 can issue remote commands similar to:
+Example remote command:
 ```bash
 DISPLAY=:1 xrandr --fb 1024x768
 ```
 
-Actual success depends on the X/VNC server configuration. Test manual `Match iPad` before enabling automatic orientation-driven resize.
+Test manual `Match iPad` before enabling automatic orientation-driven resize.
 
 ## TLS / VeNCrypt
 
-Experimental v2.2 work targets X509Vnc.
-
-Do not alter the known-good TigerVNC configuration solely to force TLS testing until:
-- baseline Tight/Hextile remains working,
-- SSH tunnel is working,
-- there is a rollback path.
+Experimental v2.2 work targets X509Vnc. Do not replace the known-good SSH Tunnel path until X509Vnc is verified on the physical iPad and actual TigerVNC configuration.
