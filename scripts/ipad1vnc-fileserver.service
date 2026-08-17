@@ -1,0 +1,16 @@
+[Unit]
+Description=iPad1VNC v2 File API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=desktop
+Group=desktop
+WorkingDirectory=/home/desktop/Downloads
+ExecStart=/usr/bin/python3 /opt/ipad1vnc/ipad1vnc_fileserver.py --root /home/desktop/Downloads --bind 0.0.0.0 --port 8085 --token-file /home/desktop/.ipad1vnc-files-token
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

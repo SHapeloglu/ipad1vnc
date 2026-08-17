@@ -1,0 +1,9 @@
+Package: com.olap.ipad1vnc
+Name: iPad1 VNC
+Version: 2.2.0-beta3
+Architecture: iphoneos-arm
+Description: iPad 1 Linux thin-client: VNC RAW/Hextile/Tight, optional VeNCrypt X509Vnc TLS, rolling diagnostics, secure profiles, SSH/terminal, resumable queued Files transfers, LAN discovery, precision mouse, WOL and dynamic resolution.
+Maintainer: Local build
+Author: Local build
+Section: Utilities
+Depends: firmware (>= 5.0)
