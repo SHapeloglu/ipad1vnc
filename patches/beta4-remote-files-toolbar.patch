@@ -1,7 +1,6 @@
-diff --git a/src/AppDelegate.m b/src/AppDelegate.m
 --- a/src/AppDelegate.m
 +++ b/src/AppDelegate.m
-@@
+@@ -1,18 +1,26 @@
  - (void)buildFilesPanel {
      CGFloat w=_controller.view.bounds.size.width,h=_controller.view.bounds.size.height,pw=MIN(760.0,w-20),ph=MIN(620.0,h-20);
      _filesPanel=[[UIView alloc] initWithFrame:CGRectMake((w-pw)/2,(h-ph)/2,pw,ph)];_filesPanel.autoresizingMask=(UIViewAutoresizingFlexibleLeftMargin|UIViewAutoresizingFlexibleRightMargin|UIViewAutoresizingFlexibleTopMargin|UIViewAutoresizingFlexibleBottomMargin);_filesPanel.backgroundColor=[UIColor colorWithWhite:0.10 alpha:0.98];_filesPanel.hidden=YES;
@@ -14,7 +13,9 @@ diff --git a/src/AppDelegate.m b/src/AppDelegate.m
 -    UIButton *close=[UIButton buttonWithType:UIButtonTypeRoundedRect];close.frame=CGRectMake(pw-85,6,70,32);[close setTitle:@"Close" forState:UIControlStateNormal];[close addTarget:self action:@selector(closeFilesTapped) forControlEvents:UIControlEventTouchUpInside];[_filesPanel addSubview:close];
 +    CGFloat margin=15.0,gap=6.0,buttonH=32.0;
 +    UILabel *title=[[[UILabel alloc] initWithFrame:CGRectMake(margin,8,pw-175,30)] autorelease];title.backgroundColor=[UIColor clearColor];title.textColor=[UIColor whiteColor];title.text=@"Remote Files";title.font=[UIFont boldSystemFontOfSize:16];[_filesPanel addSubview:title];
-+
+ 
+-    _downloadURLField=[[UITextField alloc] initWithFrame:CGRectMake(15,44,pw-230,34)];_downloadURLField.borderStyle=UITextBorderStyleRoundedRect;_downloadURLField.placeholder=@"http://server:8085";_downloadURLField.autocorrectionType=UITextAutocorrectionTypeNo;_downloadURLField.autocapitalizationType=UITextAutocapitalizationTypeNone;NSString *saved=[[NSUserDefaults standardUserDefaults] stringForKey:@"filesBaseURL"];if([saved length])_downloadURLField.text=saved;[_filesPanel addSubview:_downloadURLField];
+-    _filesTokenField=[[UITextField alloc] initWithFrame:CGRectMake(pw-210,44,120,34)];_filesTokenField.borderStyle=UITextBorderStyleRoundedRect;_filesTokenField.placeholder=@"API token";_filesTokenField.secureTextEntry=YES;_filesTokenField.text=[KeychainStore stringForService:@"com.olap.ipad1vnc" account:@"files.default"];
 +    /* Navigation stays on the title row. Transfer actions use a separate
 +       compact row so the iPad 1 portrait width can never overlap them. */
 +    _filesUpButton=[[UIButton buttonWithType:UIButtonTypeRoundedRect] retain];_filesUpButton.frame=CGRectMake(pw-145,6,60,buttonH);[_filesUpButton setTitle:@"Up" forState:UIControlStateNormal];[_filesUpButton addTarget:self action:@selector(filesUpTapped) forControlEvents:UIControlEventTouchUpInside];[_filesPanel addSubview:_filesUpButton];
@@ -26,9 +27,7 @@ diff --git a/src/AppDelegate.m b/src/AppDelegate.m
 +    UIButton *pause=[UIButton buttonWithType:UIButtonTypeRoundedRect];pause.frame=CGRectMake(margin+(actionW+gap),actionY,actionW,buttonH);[pause setTitle:@"Pause" forState:UIControlStateNormal];[pause addTarget:self action:@selector(pauseTransferTapped) forControlEvents:UIControlEventTouchUpInside];[_filesPanel addSubview:pause];
 +    UIButton *upload=[UIButton buttonWithType:UIButtonTypeRoundedRect];upload.frame=CGRectMake(margin+2.0*(actionW+gap),actionY,actionW,buttonH);[upload setTitle:@"Upload" forState:UIControlStateNormal];[upload addTarget:self action:@selector(uploadLocalFile) forControlEvents:UIControlEventTouchUpInside];[_filesPanel addSubview:upload];
 +    UIButton *close=[UIButton buttonWithType:UIButtonTypeRoundedRect];close.frame=CGRectMake(margin+3.0*(actionW+gap),actionY,actionW,buttonH);[close setTitle:@"Close" forState:UIControlStateNormal];[close addTarget:self action:@selector(closeFilesTapped) forControlEvents:UIControlEventTouchUpInside];[_filesPanel addSubview:close];
- 
--    _downloadURLField=[[UITextField alloc] initWithFrame:CGRectMake(15,44,pw-230,34)];_downloadURLField.borderStyle=UITextBorderStyleRoundedRect;_downloadURLField.placeholder=@"http://server:8085";_downloadURLField.autocorrectionType=UITextAutocorrectionTypeNo;_downloadURLField.autocapitalizationType=UITextAutocapitalizationTypeNone;NSString *saved=[[NSUserDefaults standardUserDefaults] stringForKey:@"filesBaseURL"];if([saved length])_downloadURLField.text=saved;[_filesPanel addSubview:_downloadURLField];
--    _filesTokenField=[[UITextField alloc] initWithFrame:CGRectMake(pw-210,44,120,34)];_filesTokenField.borderStyle=UITextBorderStyleRoundedRect;_filesTokenField.placeholder=@"API token";_filesTokenField.secureTextEntry=YES;_filesTokenField.text=[KeychainStore stringForService:@"com.olap.ipad1vnc" account:@"files.default"];
++
 +    CGFloat addressY=82.0;
 +    _downloadURLField=[[UITextField alloc] initWithFrame:CGRectMake(15,addressY,pw-230,34)];_downloadURLField.borderStyle=UITextBorderStyleRoundedRect;_downloadURLField.placeholder=@"http://server:8085";_downloadURLField.autocorrectionType=UITextAutocorrectionTypeNo;_downloadURLField.autocapitalizationType=UITextAutocapitalizationTypeNone;NSString *saved=[[NSUserDefaults standardUserDefaults] stringForKey:@"filesBaseURL"];if([saved length])_downloadURLField.text=saved;[_filesPanel addSubview:_downloadURLField];
 +    _filesTokenField=[[UITextField alloc] initWithFrame:CGRectMake(pw-210,addressY,120,34)];_filesTokenField.borderStyle=UITextBorderStyleRoundedRect;_filesTokenField.placeholder=@"API token";_filesTokenField.secureTextEntry=YES;_filesTokenField.text=[KeychainStore stringForService:@"com.olap.ipad1vnc" account:@"files.default"];
