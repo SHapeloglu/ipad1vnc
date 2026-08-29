@@ -65,7 +65,12 @@ if "- (BOOL)handleVNCURL:(NSURL*)url" not in ms:
 
     NSString *host=[q objectForKey:@"host"];
     if(![host length]||[host length]>255){_statusLabel.text=@"External VNC request has invalid host";return YES;}
+
+    // Direct host requests are configuration-only. Never reuse a password left in the UI
+    // for a different externally supplied host. Password-bearing auto-connect belongs to
+    // the saved-profile route, where the secret is loaded locally from Keychain.
     _hostField.text=host;
+    _passwordField.text=@"";
 
     NSString *portText=[q objectForKey:@"port"];
     if([portText length]){
@@ -90,10 +95,12 @@ if "- (BOOL)handleVNCURL:(NSURL*)url" not in ms:
         if(n>=0&&n<=1){_inputModeControl.selectedSegmentIndex=n;_vncView.inputMode=(VNCInputMode)n;}
     }
 
-    // Deliberately no password/token/key URL parameters. Existing Keychain/default profile secret remains local.
     [self saveConnectionSettings];
-    _statusLabel.text=@"External VNC request loaded";
-    if(autoConnect&&!_client)[self connectTapped];
+    if(autoConnect){
+        _statusLabel.text=@"External VNC loaded — enter password, then Connect";
+    }else{
+        _statusLabel.text=@"External VNC request loaded";
+    }
     return YES;
 }
 
