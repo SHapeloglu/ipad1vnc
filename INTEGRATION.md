@@ -10,22 +10,37 @@ All integrations must remain compatible with:
 iPad 1 / iOS 5.1.1 / armv7 / ~256 MB RAM / Objective-C / UIKit / non-ARC MRC / Theos
 ```
 
+## Responsibility gate
+
+Every new feature request must be checked before implementation:
+
+```text
+Is it VNC/RFB or VNC transport?
+    -> iPad1VNC may own it.
+
+Is it terminal/interactive SSH?
+    -> iPad1Terminal owns it.
+
+Is it local filesystem or ZIP?
+    -> iPad1Files owns it.
+
+Is it network transfer queue/pause/resume/retry?
+    -> iPad1FTPDownloader owns it.
+
+Is it document rendering/reading?
+    -> iPad1PDFReader owns it.
+```
+
+When another application owns the feature, iPad1VNC should orchestrate or hand off rather than duplicate the subsystem.
+
 ## iPad1VNC responsibility
 
 ```text
 iPad1VNC
-= RFB/VNC remote desktop + input + clipboard + VNC connection profiles
+= RFB/VNC remote desktop + input + clipboard + VNC profiles
   + transport required by VNC (Direct / SSH Tunnel / TLS)
   + lightweight remote-side orchestration
 ```
-
-It is not intended to become:
-
-- a general local file manager
-- a general FTP/HTTP download manager
-- a PDF/text reader
-- a general-purpose SSH terminal application
-- a ZIP/archive manager
 
 ## Cross-application responsibility map
 
@@ -35,8 +50,37 @@ It is not intended to become:
 | Direct/TLS/SSH tunnel used to carry VNC | iPad1VNC |
 | Interactive SSH shell / terminal | iPad1Terminal |
 | Local file management / ZIP | iPad1Files |
-| FTP/HTTP downloads, queue, pause/resume | iPad1FTPDownloader |
+| Folder/file picker | iPad1Files |
+| Network transfer queue / pause / resume / retry | iPad1FTPDownloader |
 | PDF/TXT/MD/CSV/etc viewing | iPad1PDFReader |
+
+## Current migration audit
+
+The current iPad1VNC source still contains legacy/transitional implementations that cross these boundaries.
+
+### Transitional Terminal code
+
+Current embedded SSH terminal functionality remains only because the provider is not ready yet.
+
+iPad1Terminal's current authoritative state says:
+- Local Terminal/PTTY exists;
+- SSH is not implemented yet;
+- SSH must not be started until the terminal input/screen model is sufficiently stable.
+
+Therefore:
+- do not remove the embedded iPad1VNC terminal yet;
+- do not add new shell/terminal-specific features to it;
+- once iPad1Terminal has safe SSH launch support and it is tested on the physical iPad, iPad1VNC should delegate interactive shell usage to it.
+
+SSH port forwarding for VNC remains permanently inside iPad1VNC.
+
+### Transitional transfer code
+
+The current iPad1VNC transfer engine, queue, pause/resume and upload/download state are transitional.
+
+Do not improve them as a long-term VNC subsystem except for bug fixes needed to preserve existing behavior while migration is incomplete.
+
+Long-term transfer ownership belongs to iPad1FTPDownloader/Downloader.
 
 ## Shared file root
 
@@ -46,105 +90,92 @@ Canonical local file root:
 /var/mobile/Media/iPad1Files/
 ```
 
-Expected shared folders include:
-
-```text
-Downloads/
-Documents/
-PDFs/
-Images/
-Music/
-Videos/
-Archives/
-Shared/
-Temp/
-AppData/
-```
-
 Applications should operate on the same physical file where practical instead of copying large files between application sandboxes.
 
 ## URL scheme contract
 
-The suite should use small, explicit URL contracts supported by iOS 5 `openURL:` / `canOpenURL:`.
+Use small, explicit URL contracts supported by iOS 5 `openURL:` / `canOpenURL:`.
 
 ### Terminal
+
+Target contract once SSH exists in iPad1Terminal:
 
 ```text
 ipad1terminal://ssh?host=<host>&port=<port>&user=<user>
 ipad1terminal://local?cwd=<percent-encoded-path>
 ```
 
-Security rule: never pass arbitrary shell commands through the URL. Host/user/port/path are data, not executable command text.
+Security rules:
+- never pass arbitrary shell commands;
+- never pass passwords/private keys;
+- host/user/port/path are data only;
+- receiving app validates all parameters.
 
 ### Files
 
 ```text
 ipad1files://open?path=<percent-encoded-absolute-path>
+ipad1files://show?path=<percent-encoded-absolute-path>
+ipad1files://pickFolder?root=<root>&callback=<callback>
+ipad1files://pickFile?root=<root>&callback=<callback>
 ```
 
-The target application must validate that paths are inside allowed roots before performing destructive operations.
+Use the exact subset actually implemented by iPad1Files; do not assume an unimplemented route is available.
 
 ### Reader
-
-Existing preferred PDF contract:
 
 ```text
 ipad1pdf://open?path=<percent-encoded-absolute-path>
 ```
 
-A future generic reader route may be added only if iPad1PDFReader owns and validates it.
+Reader validates the path and supported type.
 
 ### Downloader
 
-Proposed suite contract:
+Desired suite-level direction:
 
 ```text
 ipad1downloader://download?url=<percent-encoded-url>
 ```
 
-Credentials, passwords, API tokens and private keys must not be embedded in cross-app URLs.
+However, iPad1VNC's current Remote Files transport is an authenticated custom HTTP Files API, not FTP. Before adding this hand-off, inspect iPad1FTPDownloader's architecture and decide whether accepting generic HTTP/Files-API jobs still fits its role as the suite network-transfer specialist. Do not force a protocol into that app without this review.
+
+Credentials/API tokens must never appear in the URL.
+
+If a secure hand-off needs authentication, use a provider-owned saved profile/reference rather than transmitting secrets in the URL.
 
 ## iPad1VNC Remote Files policy
 
-Remote Files may remain as a lightweight remote browser/orchestrator because the VNC application already knows the current remote host and remote path.
+Remote Files may remain as a lightweight remote browser/orchestrator because iPad1VNC already knows the active remote host/session.
 
-Long-term responsibility:
+Allowed long-term scope:
 
 ```text
-Remote Files in iPad1VNC
-- browse remote path
-- select remote item
-- mkdir/rename/delete only when required by the VNC-side Files API
-- copy remote path
-- hand a transfer request to the downloader when the downloader contract supports it
-- hand a downloaded local file to Files or Reader
+browse remote directory
+select remote item
+copy remote path
+small remote mkdir/rename/delete actions when needed by the current Files API
+Open Terminal Here -> provider when available
+Download -> transfer provider when available
+Open local result -> Files/Reader
 ```
 
-Do not grow Remote Files into a second local file manager or a full download manager.
+Do not grow it into:
+- a local filesystem manager;
+- a durable transfer manager;
+- a ZIP manager;
+- a document preview system;
+- a recursive remote sync product.
 
-Existing transfer code must not be deleted until the replacement cross-app flow is physically validated on iPad 1.
+## VNC Quick Keys vs Terminal keys
 
-## SSH policy
+VNC keyboard helpers may remain in iPad1VNC when they emit RFB keyboard events, for example:
 
-SSH port forwarding required to secure a VNC connection remains inside iPad1VNC.
+```text
+Esc / Tab / Ctrl / Alt / arrows / F1-F12 / Alt-Tab / Ctrl-Alt-Del
+```
 
-Interactive shell UX belongs to iPad1Terminal. Once iPad1Terminal's external SSH profile/host contract is physically validated, iPad1VNC should prefer an `Open Terminal` action that launches iPad1Terminal rather than expanding its own terminal panel.
-
-The current embedded terminal path is a compatibility fallback until the external integration is proven.
-
-## Reader policy
-
-iPad1VNC must not render PDF, TXT, Markdown, CSV or other local document formats. After a remote file is downloaded, use the Reader contract when the file type is supported.
-
-## Files policy
-
-iPad1VNC must not implement local move/copy/delete/archive workflows. Use iPad1Files for local file management.
-
-## Downloader policy
-
-Transfer queue, durable pause/resume, retry, background-ish persistence and protocol-specific download behavior belong to iPad1FTPDownloader/Downloader.
-
-The current iPad1VNC transfer implementation is transitional and should be reduced only after the downloader accepts the required external transfer request and the physical iPad flow has been validated.
+Shell-command macros do not belong in iPad1VNC. If a task requires command execution, open iPad1Terminal.
 
 ## Graceful fallback
 
@@ -155,44 +186,45 @@ UIApplication *app=[UIApplication sharedApplication];
 if([app canOpenURL:url]){
     [app openURL:url];
 }else{
-    // show a lightweight alert; do not crash or silently fail
+    // lightweight alert or validated legacy fallback
 }
 ```
 
 A missing suite application must never prevent normal VNC operation.
 
+Fallbacks are transitional, not permission to keep expanding duplicate subsystems.
+
 ## Security rules
 
 - Never put VNC passwords, SSH passwords, Files API tokens or private keys in URL query strings.
 - Percent-encode externally supplied host/path/URL values.
-- Receiving applications must validate every parameter.
-- No arbitrary command execution URL.
+- Receiving applications validate every parameter and allowed path.
+- No arbitrary command-execution URL.
 - No silent fallback from requested secure VNC transport to Plain VNC.
-- Public repository files must not contain real server IPs, credentials or tokens.
+- Public repository files must not contain real infrastructure credentials.
 
-## Migration plan
+## Migration order
 
-Phase 1 — boundary freeze:
-- document ownership
-- stop adding Files/Reader/Downloader/Terminal-specific features to iPad1VNC
-- preserve all currently working code
+```text
+Phase 1  Freeze responsibility boundaries.
+Phase 2  Make each provider capable of the required operation.
+Phase 3  Add safe provider URL/path contract.
+Phase 4  Add iPad1VNC hand-off with graceful fallback.
+Phase 5  Build/install/test on physical iPad 1.
+Phase 6  Prefer provider path after repeated validation.
+Phase 7  Remove duplicate legacy code only then.
+```
 
-Phase 2 — provider contracts:
-- iPad1Terminal accepts safe host/user/port launch requests
-- iPad1Files accepts safe local path open requests
-- iPad1PDFReader keeps/validates `ipad1pdf://open?path=...`
-- iPad1FTPDownloader accepts safe external download requests
+## Current priority implication
 
-Phase 3 — VNC delegation:
-- add `Open Terminal`
-- add `Open in Files`
-- add `Open in Reader`
-- delegate supported downloads to Downloader
-- retain fallback only where the external app is absent or integration is not yet validated
+Do not spend beta4 effort polishing iPad1VNC transfer queue/pause-resume as a product feature. That roadmap item is superseded by the suite responsibility decision.
 
-Phase 4 — slimming:
-- after physical-device validation, remove duplicated UI/logic from iPad1VNC where another suite application is the established owner
-- do not remove VNC transport code, including SSH tunneling and TLS
+Near-term iPad1VNC work should prioritize:
+1. TLSVnc request-state/runtime validation;
+2. explicit Direct/TLS/SSH transport indicator;
+3. provider readiness checks and hand-off design;
+4. VNC-specific input/profile/quality improvements;
+5. Remote Files simplification after providers are validated.
 
 ## Acceptance rule
 
