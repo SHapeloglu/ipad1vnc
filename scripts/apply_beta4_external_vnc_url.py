@@ -17,7 +17,9 @@ if "- (BOOL)handleVNCURL:(NSURL*)url;" not in ms:
     ms = ms.replace(anchor, repl, 1)
 
 # Add an iOS 5-compatible external VNC URL handler. No secrets are accepted.
-if "- (BOOL)handleVNCURL:(NSURL*)url" not in ms:
+# Use the query-helper implementation as the idempotency marker: the method
+# declaration above must not prevent the implementation block from being added.
+if "- (NSDictionary*)ipad1vncQueryDictionary:(NSURL*)url {" not in ms:
     insert_at = ms.rfind("@end")
     if insert_at < 0:
         raise SystemExit("AppDelegate implementation end not found")
