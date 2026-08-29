@@ -89,6 +89,7 @@
 - (void)migrateSecretsToKeychain;
 - (void)terminalSessionEnded:(NSString*)reason;
 - (void)disconnectManually;
+- (BOOL)handleVNCURL:(NSURL*)url;
 @end
 
 @implementation AppDelegate
@@ -1156,4 +1157,96 @@
     [_exitFullScreenButton release];[_fullScreenButton release];[_settingsButton release];[_filesButton release];[_keyboardButton release];[_qualityControl release];[_inputModeControl release];[_tightSwitch release];[_statsLabel release];[_profilesButton release];[_profiles release];[_speedSlider release];[_speedLabel release];
     [_vncView release];[_keyboardField release];[_statusLabel release];[_connectButton release];[_passwordField release];[_portField release];[_hostField release];[_connectionPanel release];[_controller release];[_window release];[super dealloc];
 }
+
+
+- (NSDictionary*)ipad1vncQueryDictionary:(NSURL*)url {
+    NSMutableDictionary *out=[NSMutableDictionary dictionary];
+    NSString *q=[url query];
+    if(![q length])return out;
+    for(NSString *part in [q componentsSeparatedByString:@"&"]){
+        NSRange eq=[part rangeOfString:@"="];
+        NSString *k=nil,*v=nil;
+        if(eq.location==NSNotFound){k=part;v=@"";}
+        else{k=[part substringToIndex:eq.location];v=[part substringFromIndex:eq.location+1];}
+        k=[k stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        v=[v stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        if([k length])[out setObject:(v?:@"") forKey:k];
+    }
+    return out;
+}
+
+- (BOOL)handleVNCURL:(NSURL*)url {
+    if(!url||![[[url scheme] lowercaseString] isEqualToString:@"ipad1vnc"])return NO;
+    NSString *action=[[url host] lowercaseString];
+    NSDictionary *q=[self ipad1vncQueryDictionary:url];
+    BOOL autoConnect=[[[q objectForKey:@"autoconnect"] description] boolValue];
+
+    if([action isEqualToString:@"profile"]){
+        NSString *pid=[q objectForKey:@"id"];
+        if(![pid length]){_statusLabel.text=@"External VNC profile request missing id";return YES;}
+        NSInteger found=-1;
+        for(NSUInteger i=0;i<[_profiles count];i++){
+            NSDictionary *p=[_profiles objectAtIndex:i];
+            if([[[p objectForKey:@"id"] description] isEqualToString:pid]){found=(NSInteger)i;break;}
+        }
+        if(found<0){_statusLabel.text=@"External VNC profile not found";return YES;}
+        [self loadProfileAtIndex:found];
+        _statusLabel.text=@"External VNC profile loaded";
+        if(autoConnect&&!_client)[self connectTapped];
+        return YES;
+    }
+
+    if(![action isEqualToString:@"connect"]){_statusLabel.text=@"Unsupported iPad1VNC URL action";return YES;}
+
+    NSString *host=[q objectForKey:@"host"];
+    if(![host length]||[host length]>255){_statusLabel.text=@"External VNC request has invalid host";return YES;}
+
+    // Direct host requests are configuration-only. Never reuse a password left in the UI
+    // for a different externally supplied host. Password-bearing auto-connect belongs to
+    // the saved-profile route, where the secret is loaded locally from Keychain.
+    _hostField.text=host;
+    _passwordField.text=@"";
+
+    NSString *portText=[q objectForKey:@"port"];
+    if([portText length]){
+        NSInteger port=[portText integerValue];
+        if(port<1||port>65535){_statusLabel.text=@"External VNC request has invalid port";return YES;}
+        _portField.text=[NSString stringWithFormat:@"%ld",(long)port];
+    }
+
+    NSString *tls=[q objectForKey:@"tls"];
+    if([tls length])_tlsSwitch.on=[tls boolValue];
+    NSString *tight=[q objectForKey:@"tight"];
+    if([tight length])_tightSwitch.on=[tight boolValue];
+
+    NSString *quality=[q objectForKey:@"quality"];
+    if([quality length]){
+        NSInteger n=[quality integerValue];
+        if(n>=0&&n<=3)_qualityControl.selectedSegmentIndex=n;
+    }
+    NSString *input=[q objectForKey:@"input"];
+    if([input length]){
+        NSInteger n=[input integerValue];
+        if(n>=0&&n<=1){_inputModeControl.selectedSegmentIndex=n;_vncView.inputMode=(VNCInputMode)n;}
+    }
+
+    [self saveConnectionSettings];
+    if(autoConnect){
+        _statusLabel.text=@"External VNC loaded — enter password, then Connect";
+    }else{
+        _statusLabel.text=@"External VNC request loaded";
+    }
+    return YES;
+}
+
+- (BOOL)application:(UIApplication *)application handleOpenURL:(NSURL *)url {
+    (void)application;
+    return [self handleVNCURL:url];
+}
+
+- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation {
+    (void)application;(void)sourceApplication;(void)annotation;
+    return [self handleVNCURL:url];
+}
+
 @end
