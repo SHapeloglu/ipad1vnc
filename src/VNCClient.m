@@ -88,7 +88,7 @@ static void iPad1VNCDisposeSSLContext(SSLContextRef ctx) {
 - (id)initWithHost:(NSString*)host port:(NSInteger)port password:(NSString*)password{
     if((self=[super init])){
         _host=[host copy];_port=port;_password=[password copy];_sock=-1;_writeLock=[[NSLock alloc]init];
-        _qualityProfile=VNCQualityBalanced;_serverBytesPerPixel=2;_lastEncoding=[@"RAW" retain];_ssl=NULL;_tlsActive=NO;
+        _qualityProfile=VNCQualityBalanced;_serverBytesPerPixel=2;_lastEncoding=[@"RAW" retain];_ssl=NULL;_tlsActive=NO;_handshakeError=nil;_securityMode=[@"Plain VNC" retain];
         for(int i=0;i<4;i++){memset(&_tightZ[i],0,sizeof(z_stream));_tightZInit[i]=NO;}
     }return self;
 }
@@ -98,9 +98,11 @@ static void iPad1VNCDisposeSSLContext(SSLContextRef ctx) {
 }
 - (void)dealloc{
     [self disconnect];for(int i=0;i<4;i++)[self resetTightStream:i];
-    [_host release];[_password release];[_framebuffer release];[_writeLock release];[_lastEncoding release];[super dealloc];
+    [_host release];[_password release];[_framebuffer release];[_writeLock release];[_lastEncoding release];[_handshakeError release];[_securityMode release];[super dealloc];
 }
 - (void)statusMain:(NSString*)s{if([_delegate respondsToSelector:@selector(vncClientStatus:)])[_delegate vncClientStatus:s];}
+- (void)setHandshakeError:(NSString*)s{if(_handshakeError==s)return;[_handshakeError release];_handshakeError=[s copy];}
+- (void)setSecurityMode:(NSString*)s{if(_securityMode==s||[_securityMode isEqualToString:s])return;[_securityMode release];_securityMode=[s copy];}
 - (void)discMain:(NSString*)s{if([_delegate respondsToSelector:@selector(vncClientDisconnected:)])[_delegate vncClientDisconnected:s];}
 - (void)frameMain:(UIImage*)i{if([_delegate respondsToSelector:@selector(vncClientFramebuffer:width:height:)])[_delegate vncClientFramebuffer:i width:_fbWidth height:_fbHeight];}
 - (void)clipMain:(NSString*)s{if([_delegate respondsToSelector:@selector(vncClientClipboardText:)])[_delegate vncClientClipboardText:s];}
@@ -142,113 +144,152 @@ static void iPad1VNCDisposeSSLContext(SSLContextRef ctx) {
     uint8_t e[16]={2,0,0,3};p32(e+4,5);p32(e+8,0);p32(e+12,(uint32_t)-223);
     [_writeLock lock];BOOL ok=sendAllTransport(_sock,_ssl,e,16);[_writeLock unlock];return ok;
 }
-- (BOOL)startX509TLS {
+- (BOOL)startTLSVerifyCertificate:(BOOL)verify mode:(NSString*)mode {
     if(_ssl)return YES;
 
     iPad1VNC_SSLNewContext_Fn newContext=iPad1VNC_SSLNewContextPtr();
     iPad1VNC_SSLSetEnableCertVerify_Fn setVerify=iPad1VNC_SSLSetEnableCertVerifyPtr();
     if(!newContext||!setVerify){
-        [self performSelectorOnMainThread:@selector(statusMain:) withObject:@"X509 TLS unavailable in this iOS SecureTransport" waitUntilDone:NO];
+        [self setHandshakeError:@"TLS: SecureTransport symbols unavailable on iOS 5.1.1"];
         return NO;
     }
 
     SSLContextRef ctx=NULL;
     OSStatus st=newContext(false,&ctx);
-    if(st!=noErr||!ctx)return NO;
+    if(st!=noErr||!ctx){
+        [self setHandshakeError:[NSString stringWithFormat:@"TLS: SSL context creation failed (%ld)",(long)st]];
+        return NO;
+    }
 
     st=SSLSetIOFuncs(ctx,iPad1VNCSSLRead,iPad1VNCSSLWrite);
-    if(st==noErr)st=SSLSetConnection(ctx,(SSLConnectionRef)(intptr_t)_sock);
-    if(st==noErr){
+    if(st!=noErr){[self setHandshakeError:[NSString stringWithFormat:@"TLS: SSLSetIOFuncs failed (%ld)",(long)st]];iPad1VNCDisposeSSLContext(ctx);return NO;}
+    st=SSLSetConnection(ctx,(SSLConnectionRef)(intptr_t)_sock);
+    if(st!=noErr){[self setHandshakeError:[NSString stringWithFormat:@"TLS: SSLSetConnection failed (%ld)",(long)st]];iPad1VNCDisposeSSLContext(ctx);return NO;}
+
+    if(verify){
         NSData *hn=[_host dataUsingEncoding:NSUTF8StringEncoding];
-        if([hn length])st=SSLSetPeerDomainName(ctx,[hn bytes],[hn length]);
+        if([hn length]){
+            st=SSLSetPeerDomainName(ctx,[hn bytes],[hn length]);
+            if(st!=noErr){[self setHandshakeError:[NSString stringWithFormat:@"TLS: peer name setup failed (%ld)",(long)st]];iPad1VNCDisposeSSLContext(ctx);return NO;}
+        }
     }
-    if(st==noErr)st=setVerify(ctx,true);
-    if(st!=noErr){iPad1VNCDisposeSSLContext(ctx);return NO;}
+
+    st=setVerify(ctx,verify?true:false);
+    if(st!=noErr){[self setHandshakeError:[NSString stringWithFormat:@"TLS: certificate verification setup failed (%ld)",(long)st]];iPad1VNCDisposeSSLContext(ctx);return NO;}
 
     while(_running){
         st=SSLHandshake(ctx);
         if(st==noErr)break;
         if(st==errSSLWouldBlock){usleep(1000);continue;}
+        [self setHandshakeError:[NSString stringWithFormat:@"TLS: handshake failed (%ld)",(long)st]];
         iPad1VNCDisposeSSLContext(ctx);
         return NO;
     }
+    if(!_running){[self setHandshakeError:@"TLS: handshake cancelled"];iPad1VNCDisposeSSLContext(ctx);return NO;}
 
     _ssl=ctx;
     _tlsActive=YES;
+    [self setSecurityMode:mode];
     return YES;
 }
-- (BOOL)negotiateVeNCryptX509Vnc {
+- (BOOL)negotiateVeNCryptVnc {
     uint8_t ver[2]={0};
-    if(!recvAllTransport(_sock,NULL,ver,2))return NO;
-    if(ver[0]!=0||ver[1]<2)return NO;
+    if(!recvAllTransport(_sock,NULL,ver,2)){[self setHandshakeError:@"TLS: VeNCrypt version was not received"];return NO;}
+    if(ver[0]!=0||ver[1]<2){[self setHandshakeError:[NSString stringWithFormat:@"TLS: unsupported VeNCrypt version %u.%u",ver[0],ver[1]]];return NO;}
+
     uint8_t ours[2]={0,2};
-    if(!sendAllTransport(_sock,NULL,ours,2))return NO;
+    if(!sendAllTransport(_sock,NULL,ours,2)){[self setHandshakeError:@"TLS: could not send VeNCrypt 0.2 selection"];return NO;}
     uint8_t ack=1;
-    if(!recvAllTransport(_sock,NULL,&ack,1)||ack!=0)return NO;
+    if(!recvAllTransport(_sock,NULL,&ack,1)){[self setHandshakeError:@"TLS: VeNCrypt version acknowledgement missing"];return NO;}
+    if(ack!=0){[self setHandshakeError:@"TLS: server rejected VeNCrypt 0.2"];return NO;}
 
     uint8_t count=0;
-    if(!recvAllTransport(_sock,NULL,&count,1)||count==0)return NO;
-    BOOL hasX509Vnc=NO;
+    if(!recvAllTransport(_sock,NULL,&count,1)){[self setHandshakeError:@"TLS: VeNCrypt subtype count missing"];return NO;}
+    if(count==0){[self setHandshakeError:@"TLS: server offered no VeNCrypt subtypes"];return NO;}
+
+    BOOL hasTLSVnc=NO,hasX509Vnc=NO;
     for(uint8_t i=0;i<count;i++){
         uint8_t b[4];
-        if(!recvAllTransport(_sock,NULL,b,4))return NO;
+        if(!recvAllTransport(_sock,NULL,b,4)){[self setHandshakeError:@"TLS: VeNCrypt subtype list truncated"];return NO;}
         uint32_t stype=be32(b);
-        if(stype==261)hasX509Vnc=YES;
+        if(stype==258)hasTLSVnc=YES;
+        else if(stype==261)hasX509Vnc=YES;
     }
-    if(!hasX509Vnc)return NO;
 
-    uint8_t selected[4];p32(selected,261);
-    if(!sendAllTransport(_sock,NULL,selected,4))return NO;
+    uint32_t chosen=0;
+    BOOL verify=NO;
+    NSString *mode=nil;
+    if(hasX509Vnc){chosen=261;verify=YES;mode=@"X509Vnc";}
+    else if(hasTLSVnc){chosen=258;verify=NO;mode=@"TLSVnc";}
+    else {[self setHandshakeError:@"TLS: server offers neither X509Vnc(261) nor TLSVnc(258)"];return NO;}
+
+    uint8_t selected[4];p32(selected,chosen);
+    if(!sendAllTransport(_sock,NULL,selected,4)){[self setHandshakeError:@"TLS: VeNCrypt subtype selection send failed"];return NO;}
     uint8_t subAck=0;
-    if(!recvAllTransport(_sock,NULL,&subAck,1)||subAck!=1)return NO;
-    if(![self startX509TLS])return NO;
+    if(!recvAllTransport(_sock,NULL,&subAck,1)){[self setHandshakeError:@"TLS: subtype acknowledgement missing"];return NO;}
+    if(subAck!=1){[self setHandshakeError:[NSString stringWithFormat:@"TLS: server rejected VeNCrypt subtype %lu",(unsigned long)chosen]];return NO;}
+
+    if(![self startTLSVerifyCertificate:verify mode:mode])return NO;
 
     uint8_t challenge[16];
-    if(!recvAllTransport(_sock,_ssl,challenge,16)||![self authVNC:challenge])return NO;
+    if(!recvAllTransport(_sock,_ssl,challenge,16)){[self setHandshakeError:@"TLS: VNC authentication challenge missing after TLS"];return NO;}
+    if(![self authVNC:challenge]){[self setHandshakeError:@"TLS: VNC authentication response failed"];return NO;}
     return YES;
 }
 - (BOOL)handshake {
+    [self setSecurityMode:@"Plain VNC"];
     uint8_t v[12];
-    if(!recvAllTransport(_sock,NULL,v,12)||memcmp(v,"RFB ",4))return NO;
-    if(!sendAllTransport(_sock,NULL,"RFB 003.008\n",12))return NO;
+    if(!recvAllTransport(_sock,NULL,v,12)||memcmp(v,"RFB ",4)){[self setHandshakeError:@"RFB: invalid or missing server greeting"];return NO;}
+    if(!sendAllTransport(_sock,NULL,"RFB 003.008\n",12)){[self setHandshakeError:@"RFB: could not send protocol version"];return NO;}
 
     uint8_t c=0;
-    if(!recvAllTransport(_sock,NULL,&c,1)||!c)return NO;
+    if(!recvAllTransport(_sock,NULL,&c,1)||!c){[self setHandshakeError:@"RFB: server offered no security types"];return NO;}
     uint8_t types[255];
-    if(!recvAllTransport(_sock,NULL,types,c))return NO;
+    if(!recvAllTransport(_sock,NULL,types,c)){[self setHandshakeError:@"RFB: security type list truncated"];return NO;}
 
     uint8_t sel=0;
     BOOL hasVeNCrypt=NO,hasVnc=NO,hasNone=NO;
     for(int i=0;i<c;i++){if(types[i]==19)hasVeNCrypt=YES;else if(types[i]==2)hasVnc=YES;else if(types[i]==1)hasNone=YES;}
-    if(_preferX509TLS&&hasVeNCrypt)sel=19;
-    else if(hasVnc)sel=2;
+
+    if(_preferX509TLS){
+        if(!hasVeNCrypt){[self setHandshakeError:@"TLS: server does not offer VeNCrypt security type 19"];return NO;}
+        sel=19;
+    }else if(hasVnc)sel=2;
     else if(hasNone)sel=1;
-    if(!sel||!sendAllTransport(_sock,NULL,&sel,1))return NO;
+
+    if(!sel){[self setHandshakeError:@"RFB: no supported security type"];return NO;}
+    if(!sendAllTransport(_sock,NULL,&sel,1)){[self setHandshakeError:@"RFB: security selection send failed"];return NO;}
 
     if(sel==19){
-        if(![self negotiateVeNCryptX509Vnc])return NO;
+        if(![self negotiateVeNCryptVnc])return NO;
     }else if(sel==2){
+        [self setSecurityMode:@"Plain VNC"];
         uint8_t ch[16];
-        if(!recvAllTransport(_sock,NULL,ch,16)||![self authVNC:ch])return NO;
+        if(!recvAllTransport(_sock,NULL,ch,16)){[self setHandshakeError:@"VNC auth: challenge missing"];return NO;}
+        if(![self authVNC:ch]){[self setHandshakeError:@"VNC auth: response send failed"];return NO;}
+    }else{
+        [self setSecurityMode:@"Plain None"];
     }
 
     uint8_t result[4];
-    if(!recvAllTransport(_sock,_ssl,result,4)||be32(result)!=0)return NO;
+    if(!recvAllTransport(_sock,_ssl,result,4)){[self setHandshakeError:(_tlsActive?@"TLS: VNC authentication result missing":@"VNC auth: result missing")];return NO;}
+    if(be32(result)!=0){[self setHandshakeError:(_tlsActive?@"TLS: VNC authentication rejected":@"VNC authentication rejected")];return NO;}
 
     uint8_t shared=1;
-    if(!sendAllTransport(_sock,_ssl,&shared,1))return NO;
+    if(!sendAllTransport(_sock,_ssl,&shared,1)){[self setHandshakeError:@"RFB: ClientInit send failed"];return NO;}
     uint8_t init[24];
-    if(!recvAllTransport(_sock,_ssl,init,24))return NO;
+    if(!recvAllTransport(_sock,_ssl,init,24)){[self setHandshakeError:@"RFB: ServerInit missing"];return NO;}
     _fbWidth=be16(init);_fbHeight=be16(init+2);uint32_t nl=be32(init+20);
     if(nl){
         char*name=(char*)malloc(nl);
-        BOOL ok=recvAllTransport(_sock,_ssl,name,nl);
-        free(name);
-        if(!ok)return NO;
+        BOOL ok=(name!=NULL)&&recvAllTransport(_sock,_ssl,name,nl);
+        if(name)free(name);
+        if(!ok){[self setHandshakeError:@"RFB: desktop name read failed"];return NO;}
     }
     [_framebuffer release];
     _framebuffer=[[NSMutableData alloc]initWithLength:_fbWidth*_fbHeight*4];
-    return [self sendPixelFormat]&&[self sendEncodings];
+    if(![self sendPixelFormat]||![self sendEncodings]){[self setHandshakeError:@"RFB: pixel format/encoding setup failed"];return NO;}
+    return YES;
 }
 - (void)requestUpdate:(BOOL)inc{
     uint8_t m[10]={3,inc?1:0};p16(m+6,(uint16_t)_fbWidth);p16(m+8,(uint16_t)_fbHeight);
@@ -416,9 +457,10 @@ static void iPad1VNCDisposeSSLContext(SSLContextRef ctx) {
     UIImage*i=[self image];if(i)[self performSelectorOnMainThread:@selector(frameMain:) withObject:i waitUntilDone:NO];_statsFrames++;_totalFrames++;[self publishStats];[self adapt:[NSDate timeIntervalSinceReferenceDate]-st];return YES;
 }
 - (void)networkThread{
-    NSAutoreleasePool*p=[[NSAutoreleasePool alloc]init];[self performSelectorOnMainThread:@selector(statusMain:) withObject:@"Connecting…" waitUntilDone:NO];
-    if(![self openSocket]||![self handshake]){[self disconnect];[self performSelectorOnMainThread:@selector(discMain:) withObject:@"Connection/authentication failed" waitUntilDone:NO];[p drain];return;}
-    _connectedAt=_statsStart=[NSDate timeIntervalSinceReferenceDate];_latencyEMA=0;_latencyAverage=0;_latencyMax=0;_latencySamples=0;_fpsAverage=0;_fpsSamples=0;_totalFrames=0;_totalBytes=0;[self performSelectorOnMainThread:@selector(statusMain:) withObject:@"Connected" waitUntilDone:NO];[self requestUpdate:NO];
+    NSAutoreleasePool*p=[[NSAutoreleasePool alloc]init];[self setHandshakeError:nil];[self performSelectorOnMainThread:@selector(statusMain:) withObject:@"Connecting…" waitUntilDone:NO];
+    if(![self openSocket]){[self setHandshakeError:@"TCP connection failed"];[self disconnect];[self performSelectorOnMainThread:@selector(discMain:) withObject:_handshakeError waitUntilDone:YES];[p drain];return;}
+    if(![self handshake]){NSString *reason=[[_handshakeError copy] autorelease];if(!reason)reason=@"Connection/authentication failed";[self disconnect];[self performSelectorOnMainThread:@selector(discMain:) withObject:reason waitUntilDone:YES];[p drain];return;}
+    _connectedAt=_statsStart=[NSDate timeIntervalSinceReferenceDate];_latencyEMA=0;_latencyAverage=0;_latencyMax=0;_latencySamples=0;_fpsAverage=0;_fpsSamples=0;_totalFrames=0;_totalBytes=0;[self performSelectorOnMainThread:@selector(statusMain:) withObject:[NSString stringWithFormat:@"Connected — %@",(_securityMode?:@"Unknown")] waitUntilDone:NO];[self requestUpdate:NO];
     while(_running){
         NSAutoreleasePool *iterationPool=[[NSAutoreleasePool alloc] init];
         uint8_t t=0;BOOL keep=recvAllTransport(_sock,_ssl,&t,1);

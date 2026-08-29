@@ -35,6 +35,8 @@ typedef enum {
     BOOL _preferX509TLS;
     SSLContextRef _ssl;
     BOOL _tlsActive;
+    NSString *_handshakeError;
+    NSString *_securityMode;
     NSUInteger _slowFrames,_fastFrames;
     NSTimeInterval _lastQualityChange;
 
