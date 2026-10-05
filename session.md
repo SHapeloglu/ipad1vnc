@@ -1,53 +1,30 @@
-# session.md — ipad1vnc Oturum Günlüğü
+# session.md — iPad1VNC Oturum Günlüğü
 
-Her çalışma oturumunda buraya kısa bir kayıt düşülür: ne yapıldı, hangi kararlar alındı, sıradaki adım ne. Amaç, bir sonraki oturuma (veya başka bir geliştiriciye/Claude örneğine) hızlıca bağlam aktarmak.
-
----
-
-## Şablon
-
-```markdown
-## YYYY-AA-GG
-
-**Yapılanlar:**
-- ...
-
-**Alınan kararlar / neden:**
-- ...
-
-**Açık sorunlar / bilinen eksikler:**
-- ...
-
-**Sıradaki adım:**
-- ...
-```
+> Ayrıntılı devir notları `PROJECT_CONTEXT.md`'de tutulur.
 
 ---
 
 ## 2026-10-05
 
-**Yapılanlar:**
-- Eksik proje çalışma dosyaları oluşturuldu: `architect.md`, `backlog.md`, `CLAUDE.md`, `session.md`, `task.md`.
-- İçerik; README, dosya yapısı, bağımlılık dosyaları ve git geçmişinden çıkarıldı.
+- `main` dalındaki şablondan üretilmiş çalışma dosyaları kod ve `PROJECT_CONTEXT.md` okunarak yeniden yazıldı.
+- Tespit: aktif iş `beta4-ui-security-polish` dalında ve `main`'den 10+ commit önde; o dalda bu beş dosya yok.
 
-**Açık sorunlar / bilinen eksikler:**
-- README yok — kurulum/çalıştırma adımları belgelenmeli.
-- Otomatik test bulunamadı — kritik akışlar için en azından duman (smoke) testleri eklenmeli.
+---
 
-**Sıradaki adım:**
-- `CLAUDE.md` ve `architect.md` içeriğini gözden geçirip proje sahibinin bilgisiyle tamamla.
+## Önceki Çalışmalar (git geçmişinden)
 
-### Bu tarihten önceki son commit'ler (referans)
+- **2026-08-29 (beta4 dalı)** — Remote Files düzeni ve TLS taşıma tanılaması kalıcı hale getirildi; güvenli harici VNC URL çağrısı.
+- **2026-08-22** — Devir dokümanları `PROJECT_CONTEXT.md`'de birleştirildi, eskileri silindi.
+- **2026-08-17** — v2.2.0-beta3 kaynağı; kurulum/sunucu/test matrisi/yol haritası dokümanları.
 
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
-- 2026-08-22 — docs: remove superseded handoff docs
+---
+
+### Kayıt Şablonu
+
+```markdown
+## YYYY-AA-GG
+**Yapılanlar:** ...
+**Cihazda doğrulanan:** ...
+**Açık sorunlar:** ...
+**Sıradaki adım:** ...
+```

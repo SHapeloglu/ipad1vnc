@@ -1,30 +1,24 @@
-# task.md — ipad1vnc Görev Takibi
+# task.md — iPad1VNC Görevleri
 
-Bu dosya projedeki güncel görevleri takip etmek için kullanılır. Yeni bir göreve başlarken "Devam Eden"e taşı, bitirince "Tamamlanan"a taşı ve tarih ekle.
+> Güncel görev listesi `beta4-ui-security-polish` dalındaki `PROJECT_CONTEXT.md`'dedir; bu dosya `main` dalının özetidir.
 
-## 🔜 Sıradaki
+## 🔜 Sıradaki (beta4 kapsamı, öncelik sırasıyla)
 
-- [ ] `CLAUDE.md` / `architect.md` içeriğini doğrula ve eksikleri tamamla
-- [ ] README yok — kurulum/çalıştırma adımları belgelenmeli.
-- [ ] Otomatik test bulunamadı — kritik akışlar için en azından duman (smoke) testleri eklenmeli.
-
-> Uzun vadeli / önceliklendirilmemiş fikirler için bkz. `backlog.md`.
+- [ ] Remote Files toolbar çakışması (`buildFilesPanel`) — beta4 dalında düzeltme yapıldı, **fiziksel iPad'de yatay/dikey doğrulama bekliyor**
+- [ ] TLS/VeNCrypt tanılama: sunucu loglarında `VeNCrypt(19)` isteği görülüyor mu? (`VncAuth(2)` görülüyorsa önce bağlantı durumu yolu incelenecek)
+- [ ] Direct / SSH Tunnel / TLS bağlantı modu göstergesi
+- [ ] Transfer kuyruğu UI ve Pause/Resume anlamı
+- [ ] Profil hızlı işlemleri, LAN tarama UX (ana thread dışında kalmalı)
+- [ ] beta3 Disconnect → Connect düzeltmesinin korunduğunu doğrula
+- [ ] beta4 derle, kur, `PROJECT_CONTEXT.md` §13 fiziksel cihaz kontrol listesini çalıştır
+- [ ] beta4 doğrulanınca `main`'e birleştir; bu beş dosya ile beta4'teki `ARCHITECTURE.md` / `PROJECT_CONTEXT.md` arasında tek kaynak kararı ver
 
 ## 🚧 Devam Eden
 
-_(şu anda boş)_
+- [ ] `beta4-ui-security-polish` (son commit 2026-08-29)
 
 ## ✅ Tamamlanan
 
-- [x] 2026-10-05 — Proje çalışma dosyaları oluşturuldu
-
----
-
-### Görev Ekleme Şablonu
-
-```markdown
-- [ ] Kısa görev başlığı
-  - Bağlam: neden yapılıyor
-  - Kabul kriteri: ne zaman "bitti" sayılır
-  - İlgili dosyalar: ...
-```
+- [x] 2026-10-05 — Çalışma dosyaları kod ve PROJECT_CONTEXT okunarak yeniden yazıldı
+- [x] 2026-08-22 — Devir dokümanları `PROJECT_CONTEXT.md`'de birleştirildi
+- [x] 2026-08-17 — v2.2.0-beta3 kaynak kodu (Disconnect/Connect düzeltmesi dahil)

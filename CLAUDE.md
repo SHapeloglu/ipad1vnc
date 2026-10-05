@@ -1,47 +1,35 @@
-# CLAUDE.md
+# CLAUDE.md — iPad1VNC
 
-Bu dosya, bu proje üzerinde çalışırken Claude'un (Claude Code dahil) izlemesi gereken bağlamı ve kuralları içerir.
+Jailbreak'li **1. nesil iPad (iOS 5.1.1, armv7, ~256 MB RAM)** için hafif Linux yönetim konsolu: VNC masaüstü (RAW / Hextile / Tight, deneysel VeNCrypt X509Vnc TLS), SSH terminal ve tünel, uzaktan dosya yönetimi (kendi Files API sunucusuyla), profiller, tanılama, LAN tarama, Wake-on-LAN. Objective-C, UIKit, **non-ARC**, Theos.
 
-## Proje
+- GitHub: https://github.com/SHapeloglu/ipad1vnc — **PUBLIC repo**
+- **Tek doğruluk kaynağı: `PROJECT_CONTEXT.md`.** Bu dosya ve `architect.md` / `task.md` / `backlog.md` / `session.md` onun özetidir; çelişki olursa önce kaynağa bak, sonra `PROJECT_CONTEXT.md`'yi güncelle.
 
-**ipad1vnc** — _README'de açıklama bulunamadı. Projenin amacını buraya bir-iki cümleyle yazın._
+## ⚠️ Branch durumu
 
-- GitHub: https://github.com/SHapeloglu/ipad1vnc
+- `main` = kararlı **v2.2.0-beta3** (+ bu çalışma dosyaları).
+- **Aktif geliştirme `beta4-ui-security-polish` dalında** (2026-08-29'a kadar 10+ commit önde): Remote Files toolbar düzeltmesi, TLS tanılama yamaları (`scripts/apply_beta4_*.py`), harici VNC URL çağrısı, `ARCHITECTURE.md`, `INTEGRATION.md`, `RESPONSIBILITY_AUDIT.md`, rakip incelemesi. O dalda bu beş dosya yok ve daha güncel bir `PROJECT_CONTEXT.md` var.
+- Kod işine başlamadan önce `git checkout beta4-ui-security-polish` ve oradaki `PROJECT_CONTEXT.md` "Immediate next action" bölümünü oku.
 
-## Teknoloji Yığını
-
-- Objective-C / UIKit (iOS, Theos ile derleniyor)
-- Bash betikleri
-
-## Önemli Dosyalar
-
-- `Makefile`
-- `Resources/Info.plist`
-- `scripts/ipad1vnc-fileserver.service`
-- `src/AppDelegate.m`
-- `src/main.m`
-
-Mimari ayrıntılar için bkz. `architect.md`.
-
-## Sık Kullanılan Komutlar
+## Derleme ve Kurulum (WSL + Theos)
 
 ```bash
-# Henüz belgelenmiş komut yok — kurulum/çalıştırma adımlarını buraya ekleyin.
+make clean && make package FINALPACKAGE=1     # → packages/com.olap.ipad1vnc_<VER>_iphoneos-arm.deb
+scp -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa packages/*.deb root@<ipad-lan-ip>:/var/mobile/
+ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa root@<ipad-lan-ip>
+dpkg -i /var/mobile/com.olap.ipad1vnc_<VER>_iphoneos-arm.deb && killall SpringBoard
 ```
 
-## Kurallar
+- `Makefile`: `ARCHS = armv7`, `TARGET = iphone:clang:6.1:5.1`, `-fno-objc-arc`. Bunlar değiştirilmez.
+- Theos ve iOS 6.1 SDK yolları `PROJECT_CONTEXT.md` §9'da. "iOS 5.1 deprecated" uyarısı normal.
+- Sürüm `control` dosyasında (`Version:`).
 
-- Proje eski iOS sürümlerini (iPad 1 / iOS 5.1.1 dahil) hedefliyor olabilir — yeni API kullanmadan önce deployment target'ı kontrol et.
-- Derleme ortamını (Xcode veya Theos `Makefile`) değiştirmeden önce mevcut yapı dosyalarını incele; yeni kaynak dosyalarını derleme listesine (`project.pbxproj` / Makefile `*_FILES`) eklemeyi unutma.
-- `.env`, parola, token ve API anahtarlarını asla commit etme.
-- Her çalışma oturumunun sonunda `session.md`ye kısa kayıt düş; görev durumunu `task.md`de güncelle.
-- Önceliklendirilmemiş fikirleri `backlog.md`ye yaz; somutlaşınca `task.md`ye taşı.
+## Değiştirilemez Kurallar
 
-## Çalışma Dosyaları
-
-| Dosya | Amaç |
-|---|---|
-| `architect.md` | Mimari ve dizin yapısı referansı |
-| `task.md` | Aktif / devam eden / tamamlanan görevler |
-| `backlog.md` | Önceliklendirilmemiş fikir ve teknik borç havuzu |
-| `session.md` | Oturum günlüğü — her oturum sonunda güncellenir |
+- iOS 5.1.1'de olmayan API kullanma (Auto Layout, modern SecureTransport API'leri vb.) — gerekirse `respondsToSelector` / `dlsym` ile koru.
+- Manuel retain/release doğru olmalı; uzun döngülerde `@autoreleasepool`; büyük dosyaları belleğe tümden alma; terminal scrollback sınırlı.
+- RAW / Hextile / Tight geri dönüş yolunu ve **gerçek cihazda doğrulanmış Tight yolunu** bozma; TLS kapalıyken normal VNC her zaman çalışmalı; SSH Tunnel bilinen güvenli yol olarak kalmalı.
+- VNC şifresi ve Files token yalnızca Keychain'de (`KeychainStore`), `NSUserDefaults`'ta değil.
+- **Public repo:** gerçek sunucu IP'si, şifre, token, özel anahtar commit etme.
+- Fiziksel iPad testinden geçmeyen özelliği "hazır" diye işaretleme.
+- Oturum sonunda `session.md`'ye kayıt düş, `task.md`'yi güncelle (aktif dalda çalışıyorsan `PROJECT_CONTEXT.md`'yi).
