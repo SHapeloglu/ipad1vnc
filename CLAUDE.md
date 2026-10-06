@@ -9,7 +9,7 @@ Jailbreak'li **1. nesil iPad (iOS 5.1.1, armv7, ~256 MB RAM)** için hafif Linux
 
 - `main` = kararlı **v2.2.0-beta3** (+ bu çalışma dosyaları).
 - **Aktif geliştirme `beta4-ui-security-polish` dalında** (2026-08-29'a kadar 10+ commit önde): Remote Files toolbar düzeltmesi, TLS tanılama yamaları (`scripts/apply_beta4_*.py`), harici VNC URL çağrısı, `ARCHITECTURE.md`, `INTEGRATION.md`, `RESPONSIBILITY_AUDIT.md`, rakip incelemesi. O dalda bu beş dosya yok ve daha güncel bir `PROJECT_CONTEXT.md` var.
-- Kod işine başlamadan önce `git checkout beta4-ui-security-polish` ve oradaki `PROJECT_CONTEXT.md` "Immediate next action" bölümünü oku.
+- Kod işine başlamadan önce `git checkout beta4-ui-security-polish` ve oradaki `PROJECT_CONTEXT.md` "Hemen yapılacak sonraki adım" bölümünü oku.
 
 ## Derleme ve Kurulum (WSL + Theos)
 

@@ -1,243 +1,243 @@
-# iPad1VNC Project Context
+# iPad1VNC Proje Bağlamı
 
-This is the single source of truth for continuing development in a new ChatGPT/Claude/coding-agent conversation.
+Bu dosya, yeni bir ChatGPT/Claude/kod asistanı konuşmasında geliştirmeye devam etmek için tek doğruluk kaynağıdır.
 
-## 1. Repository and current development line
+## 1. Repo ve güncel geliştirme hattı
 
-Repository: `SHapeloglu/ipad1vnc`
+Repo: `SHapeloglu/ipad1vnc`
 
-Stable source currently committed on `main`: **v2.2.0-beta3**.
+`main` dalında commit'li kararlı kaynak: **v2.2.0-beta3**.
 
-Active development branch: **`beta4-ui-security-polish`**.
+Aktif geliştirme dalı: **`beta4-ui-security-polish`**.
 
-Current product direction: a lightweight Linux administration console for obsolete first-generation iPads, combining VNC desktop access, SSH terminal/tunneling, remote file management, profiles, diagnostics, LAN discovery, WOL and low-memory interaction helpers.
+Güncel ürün yönü: eski birinci nesil iPad'ler için VNC masaüstü erişimi, SSH terminal/tünel, uzak dosya yönetimi, profiller, tanılama, LAN keşfi, WOL ve düşük bellekli etkileşim yardımcılarını birleştiren hafif bir Linux yönetim konsolu.
 
-Do not restart the project from scratch. Inspect current source first and preserve working behavior.
+Projeyi sıfırdan yeniden başlatma. Önce güncel kaynağı incele ve çalışan davranışı koru.
 
-## 2. Non-negotiable platform constraints
+## 2. Değiştirilemez platform kısıtları
 
-Target hardware/software:
+Hedef donanım/yazılım:
 - iPad 1
 - iOS 5.1.1
-- jailbroken
+- jailbreak'li
 - armv7
-- about 256 MB RAM
+- yaklaşık 256 MB RAM
 - Objective-C / UIKit
-- manual retain/release (non-ARC)
-- Theos legacy build
-- deployment target iOS 5.1
-- legacy iOS 6.1 SDK
+- manuel retain/release (non-ARC)
+- eski Theos derlemesi
+- dağıtım hedefi iOS 5.1
+- eski iOS 6.1 SDK
 
-Required Makefile target:
+Zorunlu Makefile hedefi:
 
 ```make
 ARCHS = armv7
 TARGET = iphone:clang:6.1:5.1
 ```
 
-Rules:
-- Do not introduce modern iOS APIs without explicit legacy compatibility handling.
-- Avoid large dependencies and memory-heavy abstractions.
-- Never load large files completely into RAM.
-- Keep terminal scrollback bounded.
-- Use autorelease pools in long-running worker/network loops.
-- Preserve RAW/Hextile/Tight fallback behavior.
-- Do not call a feature production-ready before physical iPad testing.
+Kurallar:
+- Açık eski sürüm uyumluluk koruması olmadan güncel iOS API'leri ekleme.
+- Büyük bağımlılıklardan ve bellek ağırlıklı soyutlamalardan kaçın.
+- Büyük dosyaları asla tamamen RAM'e yükleme.
+- Terminal geri kaydırma geçmişini sınırlı tut.
+- Uzun süren işçi/ağ döngülerinde autorelease pool kullan.
+- RAW/Hextile/Tight geri dönüş davranışını koru.
+- Fiziksel iPad testi olmadan bir özelliğe üretime hazır deme.
 
-## 3. Main source ownership
+## 3. Ana kaynak dosya sorumlulukları
 
 `src/AppDelegate.m` / `.h`
-- main UI and orchestration
-- VNC connection lifecycle
-- profiles
-- SSH terminal panel
-- Remote Files panel
-- Tools / Diagnostics
+- ana arayüz ve orkestrasyon
+- VNC bağlantı yaşam döngüsü
+- profiller
+- SSH terminal paneli
+- Uzak Dosyalar paneli
+- Araçlar / Tanılama
 - WOL
-- dynamic resolution
-- LAN discovery
-- transfer queue
-- Keychain migration
+- dinamik çözünürlük
+- LAN keşfi
+- transfer kuyruğu
+- Keychain geçişi
 
 `src/VNCClient.m` / `.h`
-- RFB/VNC protocol
-- TCP connection and authentication
-- framebuffer updates
-- RAW / Hextile / Tight decoding
-- clipboard
-- pointer/key events
-- diagnostics/statistics
-- experimental VeNCrypt X509Vnc TLS
+- RFB/VNC protokolü
+- TCP bağlantısı ve kimlik doğrulama
+- framebuffer güncellemeleri
+- RAW / Hextile / Tight çözme
+- pano
+- işaretçi/tuş olayları
+- tanılama/istatistikler
+- deneysel VeNCrypt X509Vnc TLS
 
 `src/VNCView.m` / `.h`
-- framebuffer presentation
-- Direct and Trackpad input
-- pinch zoom
-- two-finger scrolling
-- right click
-- middle click
-- precision pointer
-- drag lock
+- framebuffer sunumu
+- Direct ve Trackpad girişi
+- iki parmakla yakınlaştırma
+- iki parmakla kaydırma
+- sağ tık
+- orta tık
+- hassas işaretçi
+- drag lock (sürükleme kilidi)
 
 `src/TerminalSession.m` / `.h`
-- local PTY and `/usr/bin/ssh`
-- interactive SSH
-- SSH port forwarding
-- explicit SSH username
-- key path / known_hosts / ssh-keygen
+- yerel PTY ve `/usr/bin/ssh`
+- etkileşimli SSH
+- SSH port yönlendirme
+- açık SSH kullanıcı adı
+- anahtar yolu / known_hosts / ssh-keygen
 
 `src/LegacyTerminalBuffer.m` / `.h`
-- lightweight bounded VT100-like terminal buffer
+- hafif, sınırlı VT100 benzeri terminal tamponu
 
 `src/KeychainStore.m` / `.h`
-- VNC passwords and Files API tokens must be stored in Keychain, not plaintext NSUserDefaults
+- VNC şifreleri ve Files API token'ları düz metin NSUserDefaults'ta değil Keychain'de saklanmalı
 
-## 4. Known-good real-device behavior
+## 4. Gerçek cihazda bilinen iyi davranışlar
 
-Previously validated on the physical iPad:
-- VNC connection to TigerVNC / XFCE
+Daha önce fiziksel iPad'de doğrulananlar:
+- TigerVNC / XFCE'ye VNC bağlantısı
 - RAW
 - Hextile
-- Tight encoding
-- Direct touch
-- Trackpad mode
-- pinch zoom
-- two-finger scroll
-- clipboard
-- connection profiles in earlier form
-- Files API after replacing Python simple HTTP server with the custom authenticated API
+- Tight kodlama
+- Direct dokunma
+- Trackpad modu
+- iki parmakla yakınlaştırma
+- iki parmakla kaydırma
+- pano
+- bağlantı profilleri (önceki haliyle)
+- Python basit HTTP sunucusu yerine özel kimlik doğrulamalı API'ye geçildikten sonra Files API
 
-Important result: **Tight successfully connected and rendered correctly on the real iPad.** Preserve this path.
+Önemli sonuç: **Tight gerçek iPad'de başarıyla bağlandı ve doğru görüntülendi.** Bu yolu koru.
 
-## 5. Latest beta3 disconnect fix
+## 5. Son beta3 bağlantı kesme düzeltmesi
 
-Observed beta2 bug:
-- tapping the main `Disconnect` button did not return it to `Connect`
-- the app had to be closed/reopened before reconnecting
+beta2'de görülen hata:
+- ana `Disconnect` düğmesine dokunmak onu `Connect`'e döndürmüyordu
+- yeniden bağlanmak için uygulamanın kapatılıp açılması gerekiyordu
 
-beta3 source fix:
-- main button acts as Connect/Disconnect toggle
-- manual disconnect sets `_shouldAutoReconnect = NO`
-- pending reconnect timer is invalidated
-- clipboard polling stops
-- VNC client disconnects/releases
-- active SSH VNC tunnel stops
-- controls reopen
-- button returns to `Connect`
-- unexpected network/remote disconnect still keeps auto reconnect behavior
+beta3 kaynak düzeltmesi:
+- ana düğme Bağlan/Bağlantıyı Kes geçişi olarak çalışıyor
+- elle bağlantı kesme `_shouldAutoReconnect = NO` yapıyor
+- bekleyen yeniden bağlanma zamanlayıcısı iptal ediliyor
+- pano yoklaması duruyor
+- VNC istemcisi bağlantıyı kesip serbest bırakılıyor
+- aktif SSH VNC tüneli duruyor
+- kontroller yeniden açılıyor
+- düğme `Connect`'e dönüyor
+- beklenmedik ağ/uzak bağlantı kopmasında otomatik yeniden bağlanma davranışı korunuyor
 
-This fix is in source but still requires full physical-device validation.
+Bu düzeltme kaynakta var ama hâlâ tam fiziksel cihaz doğrulaması gerektiriyor.
 
-## 6. Current observed bugs requiring beta4 work
+## 6. beta4 çalışması gerektiren gözlenen güncel hatalar
 
-### A. Remote Files toolbar overlap
+### A. Uzak Dosyalar araç çubuğu çakışması
 
-Observed on real iPad: Remote Files top buttons overlap.
+Gerçek iPad'de gözlendi: Uzak Dosyalar üst düğmeleri üst üste biniyor.
 
-Root cause found in `buildFilesPanel` inside `src/AppDelegate.m`: `Up/New` and `Queue/Pause/Upload/Close` are placed in overlapping fixed horizontal frame ranges.
+Kök neden `src/AppDelegate.m` içindeki `buildFilesPanel`'de bulundu: `Up/New` ile `Queue/Pause/Upload/Close` çakışan sabit yatay çerçeve aralıklarına yerleştirilmiş.
 
-Required beta4 change:
-- redesign the Files toolbar for iPad 1 dimensions
-- no overlapping controls in landscape or portrait
-- keep UIKit/iOS 5 compatibility
-- use compact layout and simple autoresizing/layout calculations rather than modern Auto Layout APIs if risky
-- improve Queue / Pause-Resume / Upload / Close clarity
+Gereken beta4 değişikliği:
+- Files araç çubuğunu iPad 1 boyutlarına göre yeniden tasarla
+- yatay veya dikey modda çakışan kontrol olmasın
+- UIKit/iOS 5 uyumluluğunu koru
+- riskliyse güncel Auto Layout API'leri yerine kompakt yerleşim ve basit autoresizing/yerleşim hesapları kullan
+- Kuyruk / Duraklat-Devam / Yükle / Kapat netliğini iyileştir
 
-### B. TLS / VeNCrypt error
+### B. TLS / VeNCrypt hatası
 
-Real-device TLS attempt currently fails.
+Gerçek cihazdaki TLS denemesi şu an başarısız oluyor.
 
-Current implementation in `src/VNCClient.m`:
-- VeNCrypt security type 19
-- target X509Vnc subtype 261
+`src/VNCClient.m` içindeki güncel uygulama:
+- VeNCrypt güvenlik türü 19
+- hedef X509Vnc alt türü 261
 - SecureTransport
-- legacy symbols such as `SSLNewContext`, `SSLDisposeContext`, `SSLSetEnableCertVerify` are resolved through `dlsym`
+- `SSLNewContext`, `SSLDisposeContext`, `SSLSetEnableCertVerify` gibi eski semboller `dlsym` ile çözümleniyor
 
-TLS remains **experimental**.
+TLS **deneysel** olarak kalıyor.
 
-Required beta4 work:
-- improve TLS error/status reporting so failure stage is visible
-- verify runtime SecureTransport symbol availability on iOS 5.1.1
-- distinguish: server does not offer VeNCrypt, no X509Vnc subtype, TLS context failure, certificate/handshake failure, VNC auth failure
-- never break normal VNC when TLS is OFF
-- never remove SSH Tunnel as the known-good secure transport
-- show clear connection mode/status: Direct / SSH Tunnel / TLS when practical
+Gereken beta4 çalışması:
+- başarısızlık aşaması görünsün diye TLS hata/durum raporlamasını iyileştir
+- iOS 5.1.1'de çalışma zamanında SecureTransport sembollerinin varlığını doğrula
+- şunları ayırt et: sunucu VeNCrypt sunmuyor, X509Vnc alt türü yok, TLS bağlam hatası, sertifika/el sıkışma hatası, VNC kimlik doğrulama hatası
+- TLS KAPALIYKEN normal VNC'yi asla bozma
+- bilinen iyi güvenli taşıma olarak SSH Tünelini asla kaldırma
+- pratik olduğunda bağlantı modunu/durumunu açıkça göster: Direct / SSH Tünel / TLS
 
-Do not silently claim TLS is fixed until physical-device + correctly configured TigerVNC testing passes.
+Fiziksel cihaz + doğru yapılandırılmış TigerVNC testi geçmeden TLS'in düzeldiğini sessizce iddia etme.
 
-## 7. beta4 development scope
+## 7. beta4 geliştirme kapsamı
 
-Active branch: `beta4-ui-security-polish`.
+Aktif dal: `beta4-ui-security-polish`.
 
-Planned beta4 work, in priority order:
-1. Fix Remote Files button overlap.
-2. Make Remote Files panel safe in portrait/landscape.
-3. Improve TLS/VeNCrypt diagnostics and clean failure behavior.
-4. Add clearer Direct / SSH / TLS connection indication.
-5. Improve transfer queue UI and Pause/Resume semantics.
-6. Polish profile quick actions and auto/default-profile flow without redesigning architecture.
-7. Polish LAN discovery result UX and keep scanning off the main thread.
-8. Improve status/error strings without increasing memory footprint materially.
-9. Preserve beta3 Disconnect -> Connect fix.
-10. Build, install and validate on physical iPad.
+Öncelik sırasıyla planlanan beta4 işleri:
+1. Uzak Dosyalar düğme çakışmasını düzelt.
+2. Uzak Dosyalar panelini dikey/yatayda güvenli yap.
+3. TLS/VeNCrypt tanılamasını ve temiz başarısızlık davranışını iyileştir.
+4. Daha net Direct / SSH / TLS bağlantı göstergesi ekle.
+5. Transfer kuyruğu arayüzünü ve Duraklat/Devam anlamını iyileştir.
+6. Mimariyi yeniden tasarlamadan profil hızlı işlemlerini ve otomatik/varsayılan profil akışını iyileştir.
+7. LAN keşfi sonuç deneyimini iyileştir ve taramayı ana iş parçacığı dışında tut.
+8. Bellek ayak izini belirgin artırmadan durum/hata metinlerini iyileştir.
+9. beta3 Bağlantıyı Kes -> Bağlan düzeltmesini koru.
+10. Fiziksel iPad'de derle, kur ve doğrula.
 
-Do not add RDP, audio, multi-monitor, cloud accounts/relay or heavyweight terminal frameworks in this development line.
+Bu geliştirme hattına RDP, ses, çoklu monitör, bulut hesapları/relay veya ağır terminal framework'leri ekleme.
 
-## 8. Existing v2.2 features that must be preserved
+## 8. Korunması gereken mevcut v2.2 özellikleri
 
-Implemented/targeted in current source:
-- Diagnostics 2.0 with rolling RTT/FPS statistics
-- Precision mouse mode
+Güncel kaynakta yapılmış/hedeflenmiş olanlar:
+- yuvarlanan RTT/FPS istatistikleriyle Tanılama 2.0
+- Hassas fare modu
 - Drag Lock
-- middle click
-- Profiles 3.0 quick actions
-- LAN scan
-- expanded special/hardware keyboard keys
-- transfer queue
-- resumable downloads using `.part` + HTTP Range
-- resumable/chunked uploads
+- orta tık
+- Profiller 3.0 hızlı işlemleri
+- LAN tarama
+- genişletilmiş özel/donanım klavye tuşları
+- transfer kuyruğu
+- `.part` + HTTP Range ile devam edebilen indirmeler
+- devam edebilen/parçalı yüklemeler
 - Files `/api/stat`
-- memory-pressure cleanup
-- per-network-message autorelease pools
-- experimental VeNCrypt X509Vnc TLS
+- bellek baskısında temizlik
+- ağ mesajı başına autorelease pool'lar
+- deneysel VeNCrypt X509Vnc TLS
 
-Many of these still need runtime validation. Do not rewrite working subsystems merely for style.
+Bunların çoğu hâlâ çalışma zamanı doğrulaması gerektiriyor. Çalışan alt sistemleri yalnızca stil için yeniden yazma.
 
-## 9. Build environment
+## 9. Derleme ortamı
 
-Known WSL environment:
+Bilinen WSL ortamı:
 
 ```text
 Theos: /home/yeliz/theos
 Legacy SDK: /home/yeliz/legacy-ios-sdks/iPhoneOS6.1-extracted/iPhoneOS6.1.sdk
 ```
 
-Typical local checkout path:
+Tipik yerel çalışma klasörü:
 
 ```text
 ~/projects/ipad1vnc/iPad1VNC-v2.2.0-beta3
 ```
 
-Build:
+Derleme:
 
 ```bash
 make clean
 make package FINALPACKAGE=1
 ```
 
-Expected beta3 artifact naming:
+beta3 için beklenen paket adı:
 
 ```text
 packages/com.olap.ipad1vnc_2.2.0-beta3_iphoneos-arm.deb
 ```
 
-A warning that building for iOS 5.1 is deprecated is expected and is not itself a failure.
+iOS 5.1 için derlemenin kullanımdan kalktığı uyarısı beklenir ve tek başına hata değildir.
 
-## 10. Copy/install on iPad
+## 10. iPad'e kopyalama/kurulum
 
-Known LAN test address has been `192.168.1.2`.
+Bilinen yerel ağ test adresi `192.168.1.2` oldu.
 
-Modern OpenSSH requires compatibility with the old iPad SSH server:
+Güncel OpenSSH, eski iPad SSH sunucusuyla uyumluluk gerektirir:
 
 ```bash
 scp \
@@ -256,31 +256,31 @@ ssh \
 root@192.168.1.2
 ```
 
-Do not globally enable obsolete SSH algorithms.
+Eski SSH algoritmalarını genel olarak açma.
 
-On the iPad:
+iPad'de:
 
 ```bash
 dpkg -i /var/mobile/com.olap.ipad1vnc_<VERSION>_iphoneos-arm.deb
 killall SpringBoard
 ```
 
-## 11. Linux/TigerVNC server context
+## 11. Linux/TigerVNC sunucu bağlamı
 
-Development server:
+Geliştirme sunucusu:
 - Ubuntu 24.04
 - XFCE
-- Linux desktop user: `desktop`
-- TigerVNC display `:1`
-- development VNC port `5901`
+- Linux masaüstü kullanıcısı: `desktop`
+- TigerVNC ekranı `:1`
+- geliştirme VNC portu `5901`
 
-Typical VNC command:
+Tipik VNC komutu:
 
 ```bash
 vncserver :1 -geometry 1024x768 -depth 24 -localhost no
 ```
 
-Typical `~/.vnc/xstartup`:
+Tipik `~/.vnc/xstartup`:
 
 ```sh
 #!/bin/sh
@@ -289,43 +289,43 @@ unset DBUS_SESSION_BUS_ADDRESS
 exec dbus-launch --exit-with-session startxfce4
 ```
 
-The repository is public. Never commit the real public server IP, passwords, API tokens or private keys.
+Repo herkese açıktır. Gerçek genel sunucu IP'sini, şifreleri, API token'larını veya özel anahtarları asla commit etme.
 
-## 12. Files API server
+## 12. Files API sunucusu
 
-Matching source:
+Eşleşen kaynak:
 
 ```text
 scripts/ipad1vnc_fileserver.py
 ```
 
-Typical server installation:
+Tipik sunucu kurulumu:
 
 ```text
 /opt/ipad1vnc/ipad1vnc_fileserver.py
 ```
 
-Files root:
+Dosya kökü:
 
 ```text
 /home/desktop/Downloads
 ```
 
-Token file:
+Token dosyası:
 
 ```text
 /home/desktop/.ipad1vnc-files-token
 ```
 
-Development port: `8085`
+Geliştirme portu: `8085`
 
-Authentication header:
+Kimlik doğrulama başlığı:
 
 ```text
 X-iPad1VNC-Token
 ```
 
-Endpoints:
+Uç noktalar:
 - `GET /api/list?path=...`
 - `GET /api/stat?path=...`
 - `GET /download?path=...&token=...`
@@ -335,66 +335,66 @@ Endpoints:
 - `POST /api/upload`
 - `POST /api/upload-chunk?path=...&offset=...&total=...`
 
-v2.2 supports/targets HTTP Range downloads for resume.
+v2.2, devam için HTTP Range indirmelerini destekler/hedefler.
 
-Security direction:
-- Files token over plain HTTP is authentication, not encryption
-- SSH Tunnel is the proven secure path
-- after secure tunnel validation, restrict/firewall public 5901 and 8085
+Güvenlik yönü:
+- düz HTTP üzerindeki Files token'ı şifreleme değil, kimlik doğrulamadır
+- kanıtlanmış güvenli yol SSH Tünelidir
+- güvenli tünel doğrulandıktan sonra genel 5901 ve 8085 portlarını kısıtla/güvenlik duvarıyla kapat
 
-## 13. Physical-device validation checklist
+## 13. Fiziksel cihaz doğrulama kontrol listesi
 
-Highest-priority sequence:
-1. Tight ON connects.
-2. Main `Disconnect` immediately becomes `Connect`.
-3. Reconnect without restarting app.
-4. Manual disconnect does not auto-reconnect after 3 seconds.
-5. Unexpected network/server loss still auto-reconnects.
-6. Remote Files controls do not overlap in landscape.
-7. Remote Files controls do not overlap in portrait.
-8. Queue / Pause-Resume / Upload / Close work repeatedly.
-9. Diagnostics RTT/FPS/kbps/frame values change realistically.
-10. Precision mode and Drag Lock work.
-11. Profile quick actions work.
-12. Terminal requires explicit SSH user and Connect/Stop work repeatedly.
-13. Files list/stat/download/upload/rename/delete/mkdir work.
-14. Interrupted download resumes from `.part` via HTTP Range.
-15. Interrupted upload resumes from remote size/chunks.
-16. 100+ MB transfer does not crash the iPad.
-17. LAN scan completes without freezing UI.
-18. SSH tunnel works and stops on manual disconnect.
-19. TLS/X509Vnc is tested last with correctly configured TigerVNC.
-20. Run 15/30/60-minute stability sessions and repeated connect/disconnect cycles.
+En yüksek öncelikli sıra:
+1. Tight AÇIK bağlanıyor.
+2. Ana `Disconnect` hemen `Connect` oluyor.
+3. Uygulamayı yeniden başlatmadan yeniden bağlan.
+4. Elle bağlantı kesme 3 saniye sonra otomatik yeniden bağlanmıyor.
+5. Beklenmedik ağ/sunucu kaybı hâlâ otomatik yeniden bağlanıyor.
+6. Uzak Dosyalar kontrolleri yatayda çakışmıyor.
+7. Uzak Dosyalar kontrolleri dikeyde çakışmıyor.
+8. Kuyruk / Duraklat-Devam / Yükle / Kapat tekrar tekrar çalışıyor.
+9. Tanılama RTT/FPS/kbps/kare değerleri gerçekçi şekilde değişiyor.
+10. Hassas mod ve Drag Lock çalışıyor.
+11. Profil hızlı işlemleri çalışıyor.
+12. Terminal açık SSH kullanıcısı gerektiriyor ve Bağlan/Durdur tekrar tekrar çalışıyor.
+13. Files listele/bilgi/indir/yükle/yeniden adlandır/sil/klasör oluştur çalışıyor.
+14. Kesilen indirme `.part` dosyasından HTTP Range ile devam ediyor.
+15. Kesilen yükleme uzak boyuttan/parçalardan devam ediyor.
+16. 100+ MB transfer iPad'i çökertmiyor.
+17. LAN tarama arayüzü dondurmadan tamamlanıyor.
+18. SSH tüneli çalışıyor ve elle bağlantı kesmede duruyor.
+19. TLS/X509Vnc en son, doğru yapılandırılmış TigerVNC ile test ediliyor.
+20. 15/30/60 dakikalık kararlılık oturumları ve tekrarlı bağlan/kes döngüleri çalıştırılıyor.
 
-## 14. Coding/development rules
+## 14. Kodlama/geliştirme kuralları
 
-- Preserve the last known-good path while making risky beta changes.
-- Keep non-ARC memory ownership correct.
-- Keep UIKit compatible with iOS 5.1.1.
-- Avoid disabling warnings merely to make code compile; fix the source where practical.
-- Do not store VNC passwords or Files tokens in plaintext defaults.
-- Do not expose private infrastructure credentials in this public repository.
-- Prefer small, reviewable changes and real-device validation after meaningful steps.
-- When documentation and source conflict, inspect the source and update this file after establishing actual state.
+- Riskli beta değişiklikleri yaparken son bilinen iyi yolu koru.
+- non-ARC bellek sahipliğini doğru tut.
+- UIKit'i iOS 5.1.1 ile uyumlu tut.
+- Yalnızca derlensin diye uyarıları kapatmaktan kaçın; pratikse kaynağı düzelt.
+- VNC şifrelerini veya Files token'larını düz metin defaults'ta saklama.
+- Bu herkese açık repoda özel altyapı kimlik bilgilerini açığa çıkarma.
+- Küçük, incelenebilir değişiklikleri ve anlamlı adımlardan sonra gerçek cihaz doğrulamasını tercih et.
+- Dokümantasyon ile kaynak çelişirse kaynağı incele ve gerçek durumu belirledikten sonra bu dosyayı güncelle.
 
-## 15. Immediate next action
+## 15. Hemen yapılacak sonraki adım
 
-Continue on branch:
+Şu dalda devam et:
 
 ```text
 beta4-ui-security-polish
 ```
 
-First code change: fix `buildFilesPanel` in `src/AppDelegate.m` so Remote Files toolbar buttons cannot overlap on iPad 1 in landscape or portrait. Then build/install beta4 and validate layout on the physical device before moving to TLS diagnostics.
+İlk kod değişikliği: `src/AppDelegate.m` içindeki `buildFilesPanel`'i, Uzak Dosyalar araç çubuğu düğmeleri iPad 1'de yatay veya dikey modda çakışamayacak şekilde düzelt. Ardından beta4'ü derleyip kur ve TLS tanılamasına geçmeden önce yerleşimi fiziksel cihazda doğrula.
 
-## 16. New-chat bootstrap prompt
+## 16. Yeni sohbet başlangıç metni
 
-Use this minimal prompt in a new conversation:
+Yeni bir konuşmada bu kısa metni kullan:
 
 ```text
-Continue the iPad1VNC project from https://github.com/SHapeloglu/ipad1vnc
-Read PROJECT_CONTEXT.md first, then inspect the current source code.
-Do not redesign or restart the project.
-Preserve iPad 1 / iOS 5.1.1 / armv7 / non-ARC / ~256 MB RAM constraints.
-Continue from the Immediate next action in PROJECT_CONTEXT.md and keep that file updated after meaningful progress.
+https://github.com/SHapeloglu/ipad1vnc üzerinden iPad1VNC projesine devam et.
+Önce PROJECT_CONTEXT.md'yi oku, sonra güncel kaynak kodu incele.
+Projeyi yeniden tasarlama veya baştan başlatma.
+iPad 1 / iOS 5.1.1 / armv7 / non-ARC / ~256 MB RAM kısıtlarını koru.
+PROJECT_CONTEXT.md'deki "Hemen yapılacak sonraki adım" bölümünden devam et ve anlamlı ilerlemeden sonra o dosyayı güncel tut.
 ```
